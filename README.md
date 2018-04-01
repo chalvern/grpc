@@ -1,7 +1,11 @@
-[gRPC - An RPC library and framework](http://github.com/grpc/grpc)
-===================================
 
-[![Join the chat at https://gitter.im/grpc/grpc](https://badges.gitter.im/grpc/grpc.svg)](https://gitter.im/grpc/grpc?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+一起来读源码。主要包含两部分的内容：
+
+1. 源码内容；
+1. 部分英文到中文的翻译
+
+
+[gRPC - An RPC library and framework](http://github.com/grpc/grpc)
 
 Copyright 2015
 [The gRPC Authors](https://github.com/grpc/grpc/blob/master/AUTHORS)
