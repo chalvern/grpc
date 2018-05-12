@@ -23,7 +23,7 @@
 Pod::Spec.new do |s|
   s.name     = 'gRPC-C++'
   # TODO (mxyan): use version that match gRPC version when pod is stabilized
-  # version = '1.11.0-dev'
+  # version = '1.13.0-dev'
   version = '0.0.2'
   s.version  = version
   s.summary  = 'gRPC C++ library'
@@ -31,7 +31,7 @@ Pod::Spec.new do |s|
   s.license  = 'Apache License, Version 2.0'
   s.authors  = { 'The gRPC contributors' => 'grpc-packages@google.com' }
 
-  grpc_version = '1.11.0-dev'
+  grpc_version = '1.13.0-dev'
 
   s.source = {
     :git => 'https://github.com/grpc/grpc.git',
@@ -112,6 +112,8 @@ Pod::Spec.new do |s|
                       'include/grpcpp/support/byte_buffer.h',
                       'include/grpcpp/support/channel_arguments.h',
                       'include/grpcpp/support/config.h',
+                      'include/grpcpp/support/proto_buffer_reader.h',
+                      'include/grpcpp/support/proto_buffer_writer.h',
                       'include/grpcpp/support/slice.h',
                       'include/grpcpp/support/status.h',
                       'include/grpcpp/support/status_code_enum.h',
@@ -206,7 +208,6 @@ Pod::Spec.new do |s|
                       'src/cpp/server/server_posix.cc',
                       'src/cpp/thread_manager/thread_manager.cc',
                       'src/cpp/util/byte_buffer_cc.cc',
-                      'src/cpp/util/slice_cc.cc',
                       'src/cpp/util/status.cc',
                       'src/cpp/util/string_ref.cc',
                       'src/cpp/util/time_cc.cc',
@@ -259,6 +260,7 @@ Pod::Spec.new do |s|
                       'src/core/ext/filters/http/client/http_client_filter.h',
                       'src/core/ext/filters/http/message_compress/message_compress_filter.h',
                       'src/core/ext/filters/http/server/http_server_filter.h',
+                      'src/core/ext/filters/client_channel/lb_policy/grpclb/grpclb.h',
                       'src/core/lib/security/context/security_context.h',
                       'src/core/lib/security/credentials/alts/alts_credentials.h',
                       'src/core/lib/security/credentials/composite/composite_credentials.h',
@@ -306,7 +308,6 @@ Pod::Spec.new do |s|
                       'src/core/tsi/alts/handshaker/handshaker.pb.h',
                       'src/core/tsi/alts/handshaker/transport_security_common.pb.h',
                       'src/core/tsi/transport_security.h',
-                      'src/core/tsi/transport_security_adapter.h',
                       'src/core/tsi/transport_security_interface.h',
                       'src/core/ext/transport/chttp2/client/authority.h',
                       'src/core/ext/transport/chttp2/client/chttp2_connector.h',

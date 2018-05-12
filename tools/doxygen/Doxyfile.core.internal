@@ -779,6 +779,7 @@ doc/cpp-style-guide.md \
 doc/environment_variables.md \
 doc/epoll-polling-engine.md \
 doc/fail_fast.md \
+doc/fork_support.md \
 doc/g_stands_for.md \
 doc/health-checking.md \
 doc/http-grpc-status-mapping.md \
@@ -885,6 +886,7 @@ src/core/ext/filters/client_channel/lb_policy.h \
 src/core/ext/filters/client_channel/lb_policy/grpclb/client_load_reporting_filter.cc \
 src/core/ext/filters/client_channel/lb_policy/grpclb/client_load_reporting_filter.h \
 src/core/ext/filters/client_channel/lb_policy/grpclb/grpclb.cc \
+src/core/ext/filters/client_channel/lb_policy/grpclb/grpclb.h \
 src/core/ext/filters/client_channel/lb_policy/grpclb/grpclb_channel.h \
 src/core/ext/filters/client_channel/lb_policy/grpclb/grpclb_channel_secure.cc \
 src/core/ext/filters/client_channel/lb_policy/grpclb/grpclb_client_stats.cc \
@@ -895,7 +897,6 @@ src/core/ext/filters/client_channel/lb_policy/grpclb/proto/grpc/lb/v1/load_balan
 src/core/ext/filters/client_channel/lb_policy/grpclb/proto/grpc/lb/v1/load_balancer.pb.h \
 src/core/ext/filters/client_channel/lb_policy/pick_first/pick_first.cc \
 src/core/ext/filters/client_channel/lb_policy/round_robin/round_robin.cc \
-src/core/ext/filters/client_channel/lb_policy/subchannel_list.cc \
 src/core/ext/filters/client_channel/lb_policy/subchannel_list.h \
 src/core/ext/filters/client_channel/lb_policy_factory.cc \
 src/core/ext/filters/client_channel/lb_policy_factory.h \
@@ -1496,8 +1497,6 @@ src/core/tsi/ssl_transport_security.h \
 src/core/tsi/ssl_types.h \
 src/core/tsi/transport_security.cc \
 src/core/tsi/transport_security.h \
-src/core/tsi/transport_security_adapter.cc \
-src/core/tsi/transport_security_adapter.h \
 src/core/tsi/transport_security_grpc.cc \
 src/core/tsi/transport_security_grpc.h \
 src/core/tsi/transport_security_interface.h \

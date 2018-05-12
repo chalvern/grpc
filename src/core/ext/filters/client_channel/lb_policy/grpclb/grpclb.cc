@@ -76,6 +76,7 @@
 #include "src/core/ext/filters/client_channel/client_channel.h"
 #include "src/core/ext/filters/client_channel/client_channel_factory.h"
 #include "src/core/ext/filters/client_channel/lb_policy/grpclb/client_load_reporting_filter.h"
+#include "src/core/ext/filters/client_channel/lb_policy/grpclb/grpclb.h"
 #include "src/core/ext/filters/client_channel/lb_policy/grpclb/grpclb_channel.h"
 #include "src/core/ext/filters/client_channel/lb_policy/grpclb/grpclb_client_stats.h"
 #include "src/core/ext/filters/client_channel/lb_policy/grpclb/load_balancer_api.h"
@@ -189,6 +190,10 @@ class GrpcLb : public LoadBalancingPolicy {
     bool seen_initial_response() const { return seen_initial_response_; }
 
    private:
+    // So Delete() can access our private dtor.
+    template <typename T>
+    friend void grpc_core::Delete(T*);
+
     ~BalancerCallState();
 
     GrpcLb* grpclb_policy() const {
@@ -394,7 +399,7 @@ grpc_lb_addresses* ExtractBackendAddresses(const grpc_lb_addresses* addresses) {
 bool IsServerValid(const grpc_grpclb_server* server, size_t idx, bool log) {
   if (server->drop) return false;
   const grpc_grpclb_ip_address* ip = &server->ip_address;
-  if (server->port >> 16 != 0) {
+  if (GPR_UNLIKELY(server->port >> 16 != 0)) {
     if (log) {
       gpr_log(GPR_ERROR,
               "Invalid port '%d' at index %lu of serverlist. Ignoring.",
@@ -402,7 +407,7 @@ bool IsServerValid(const grpc_grpclb_server* server, size_t idx, bool log) {
     }
     return false;
   }
-  if (ip->size != 4 && ip->size != 16) {
+  if (GPR_UNLIKELY(ip->size != 4 && ip->size != 16)) {
     if (log) {
       gpr_log(GPR_ERROR,
               "Expected IP to be 4 or 16 bytes, got %d at index %lu of "
@@ -710,7 +715,7 @@ void GrpcLb::BalancerCallState::SendClientLoadReportLocked() {
                     this, grpc_combiner_scheduler(grpclb_policy()->combiner()));
   grpc_call_error call_error = grpc_call_start_batch_and_execute(
       lb_call_, &op, 1, &client_load_report_closure_);
-  if (call_error != GRPC_CALL_OK) {
+  if (GPR_UNLIKELY(call_error != GRPC_CALL_OK)) {
     gpr_log(GPR_ERROR, "[grpclb %p] call_error=%d", grpclb_policy_.get(),
             call_error);
     GPR_ASSERT(GRPC_CALL_OK == call_error);
@@ -932,7 +937,7 @@ grpc_lb_addresses* ExtractBalancerAddresses(
   size_t lb_addresses_idx = 0;
   for (size_t i = 0; i < addresses->num_addresses; ++i) {
     if (!addresses->addresses[i].is_balancer) continue;
-    if (addresses->addresses[i].user_data != nullptr) {
+    if (GPR_UNLIKELY(addresses->addresses[i].user_data != nullptr)) {
       gpr_log(GPR_ERROR,
               "This LB policy doesn't support user data. It will be ignored");
     }
@@ -999,6 +1004,9 @@ grpc_channel_args* BuildBalancerChannelArgs(
       // address updates into the LB channel.
       grpc_core::FakeResolverResponseGenerator::MakeChannelArg(
           response_generator),
+      // A channel arg indicating the target is a grpclb load balancer.
+      grpc_channel_arg_integer_create(
+          const_cast<char*>(GRPC_ARG_ADDRESS_IS_GRPCLB_LOAD_BALANCER), 1),
   };
   // Construct channel args.
   grpc_channel_args* new_args = grpc_channel_args_copy_and_add_and_remove(
@@ -1243,7 +1251,7 @@ bool GrpcLb::PickLocked(PickState* pick) {
     }
   } else {  // rr_policy_ == NULL
     if (grpc_lb_glb_trace.enabled()) {
-      gpr_log(GPR_DEBUG,
+      gpr_log(GPR_INFO,
               "[grpclb %p] No RR policy. Adding to grpclb's pending picks",
               this);
     }
@@ -1280,7 +1288,7 @@ void GrpcLb::NotifyOnStateChangeLocked(grpc_connectivity_state* current,
 
 void GrpcLb::ProcessChannelArgsLocked(const grpc_channel_args& args) {
   const grpc_arg* arg = grpc_channel_args_find(&args, GRPC_ARG_LB_ADDRESSES);
-  if (arg == nullptr || arg->type != GRPC_ARG_POINTER) {
+  if (GPR_UNLIKELY(arg == nullptr || arg->type != GRPC_ARG_POINTER)) {
     // Ignore this update.
     gpr_log(
         GPR_ERROR,
@@ -1409,14 +1417,13 @@ void GrpcLb::OnFallbackTimerLocked(void* arg, grpc_error* error) {
 void GrpcLb::StartBalancerCallRetryTimerLocked() {
   grpc_millis next_try = lb_call_backoff_.NextAttemptTime();
   if (grpc_lb_glb_trace.enabled()) {
-    gpr_log(GPR_DEBUG, "[grpclb %p] Connection to LB server lost...", this);
+    gpr_log(GPR_INFO, "[grpclb %p] Connection to LB server lost...", this);
     grpc_millis timeout = next_try - ExecCtx::Get()->Now();
     if (timeout > 0) {
-      gpr_log(GPR_DEBUG,
-              "[grpclb %p] ... retry_timer_active in %" PRIuPTR "ms.", this,
-              timeout);
+      gpr_log(GPR_INFO, "[grpclb %p] ... retry_timer_active in %" PRIuPTR "ms.",
+              this, timeout);
     } else {
-      gpr_log(GPR_DEBUG, "[grpclb %p] ... retry_timer_active immediately.",
+      gpr_log(GPR_INFO, "[grpclb %p] ... retry_timer_active immediately.",
               this);
     }
   }
@@ -1517,7 +1524,7 @@ void GrpcLb::PendingPickSetMetadataAndContext(PendingPick* pp) {
    * policy (e.g., all addresses failed to connect). There won't be any
    * user_data/token available */
   if (pp->pick->connected_subchannel != nullptr) {
-    if (!GRPC_MDISNULL(pp->lb_token)) {
+    if (GPR_LIKELY(!GRPC_MDISNULL(pp->lb_token))) {
       AddLbTokenToInitialMetadata(GRPC_MDELEM_REF(pp->lb_token),
                                   &pp->pick->lb_token_mdelem_storage,
                                   pp->pick->initial_metadata);
@@ -1642,7 +1649,7 @@ void GrpcLb::CreateRoundRobinPolicyLocked(const Args& args) {
   GPR_ASSERT(rr_policy_ == nullptr);
   rr_policy_ = LoadBalancingPolicyRegistry::CreateLoadBalancingPolicy(
       "round_robin", args);
-  if (rr_policy_ == nullptr) {
+  if (GPR_UNLIKELY(rr_policy_ == nullptr)) {
     gpr_log(GPR_ERROR, "[grpclb %p] Failure creating a RoundRobin policy",
             this);
     return;
@@ -1695,9 +1702,11 @@ void GrpcLb::CreateRoundRobinPolicyLocked(const Args& args) {
 
 grpc_channel_args* GrpcLb::CreateRoundRobinPolicyArgsLocked() {
   grpc_lb_addresses* addresses;
+  bool is_backend_from_grpclb_load_balancer = false;
   if (serverlist_ != nullptr) {
     GPR_ASSERT(serverlist_->num_servers > 0);
     addresses = ProcessServerlist(serverlist_);
+    is_backend_from_grpclb_load_balancer = true;
   } else {
     // If CreateOrUpdateRoundRobinPolicyLocked() is invoked when we haven't
     // received any serverlist from the balancer, we use the fallback backends
@@ -1711,9 +1720,18 @@ grpc_channel_args* GrpcLb::CreateRoundRobinPolicyArgsLocked() {
   // Replace the LB addresses in the channel args that we pass down to
   // the subchannel.
   static const char* keys_to_remove[] = {GRPC_ARG_LB_ADDRESSES};
-  const grpc_arg arg = grpc_lb_addresses_create_channel_arg(addresses);
+  const grpc_arg args_to_add[] = {
+      grpc_lb_addresses_create_channel_arg(addresses),
+      // A channel arg indicating if the target is a backend inferred from a
+      // grpclb load balancer.
+      grpc_channel_arg_integer_create(
+          const_cast<char*>(
+              GRPC_ARG_ADDRESS_IS_BACKEND_FROM_GRPCLB_LOAD_BALANCER),
+          is_backend_from_grpclb_load_balancer),
+  };
   grpc_channel_args* args = grpc_channel_args_copy_and_add_and_remove(
-      args_, keys_to_remove, GPR_ARRAY_SIZE(keys_to_remove), &arg, 1);
+      args_, keys_to_remove, GPR_ARRAY_SIZE(keys_to_remove), args_to_add,
+      GPR_ARRAY_SIZE(args_to_add));
   grpc_lb_addresses_destroy(addresses);
   return args;
 }
@@ -1724,7 +1742,7 @@ void GrpcLb::CreateOrUpdateRoundRobinPolicyLocked() {
   GPR_ASSERT(args != nullptr);
   if (rr_policy_ != nullptr) {
     if (grpc_lb_glb_trace.enabled()) {
-      gpr_log(GPR_DEBUG, "[grpclb %p] Updating RR policy %p", this,
+      gpr_log(GPR_INFO, "[grpclb %p] Updating RR policy %p", this,
               rr_policy_.get());
     }
     rr_policy_->UpdateLocked(*args);
@@ -1735,7 +1753,7 @@ void GrpcLb::CreateOrUpdateRoundRobinPolicyLocked() {
     lb_policy_args.args = args;
     CreateRoundRobinPolicyLocked(lb_policy_args);
     if (grpc_lb_glb_trace.enabled()) {
-      gpr_log(GPR_DEBUG, "[grpclb %p] Created new RR policy %p", this,
+      gpr_log(GPR_INFO, "[grpclb %p] Created new RR policy %p", this,
               rr_policy_.get());
     }
   }
@@ -1751,7 +1769,7 @@ void GrpcLb::OnRoundRobinRequestReresolutionLocked(void* arg,
   }
   if (grpc_lb_glb_trace.enabled()) {
     gpr_log(
-        GPR_DEBUG,
+        GPR_INFO,
         "[grpclb %p] Re-resolution requested from the internal RR policy (%p).",
         grpclb_policy, grpclb_policy->rr_policy_.get());
   }
